@@ -75,5 +75,10 @@ public class TackleControlsIssue9Test extends SecuredResourceTest {
                     "owner[0]", is(emptyOrNullString()),
                     "id[0]", is(dogId.intValue()),
                     "size()", is(1));
+
+        given()
+                .pathParam("id", dogId)
+                .when().delete("/dog/{id}")
+                .then().statusCode(204);
     }
 }
