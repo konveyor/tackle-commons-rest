@@ -52,14 +52,11 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
     String DEFAULT_VALUE_PAGE = "0";
     String QUERY_PARAM_SORT = "sort";
     String DEFAULT_VALUE_SORT = "id";
-    String QUERY_PARAM_FILTER = "where";
-    String DEFAULT_VALUE_FILTER = "";
     String DEFAULT_SQL_ROOT_TABLE_ALIAS = "table";
 
     default Response list(@QueryParam(QUERY_PARAM_SORT) @DefaultValue(DEFAULT_VALUE_SORT) List var1,
                          @QueryParam(QUERY_PARAM_PAGE) @DefaultValue(DEFAULT_VALUE_PAGE) int var2,
                          @QueryParam(QUERY_PARAM_SIZE) @DefaultValue(DEFAULT_VALUE_SIZE) int var3,
-                         @QueryParam(QUERY_PARAM_FILTER) @DefaultValue(DEFAULT_VALUE_FILTER) String filter,
                          @Context UriInfo var4,
                           boolean hal) throws Exception {
         Sort var10 = Sort.by(new String[0]);

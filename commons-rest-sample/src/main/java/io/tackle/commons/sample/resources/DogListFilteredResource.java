@@ -1,6 +1,5 @@
 package io.tackle.commons.sample.resources;
 
-
 import io.tackle.commons.resources.ListFilteredResource;
 import io.tackle.commons.sample.entities.Dog;
 import org.jboss.resteasy.links.LinkResource;
@@ -38,12 +37,11 @@ public class DogListFilteredResource implements ListFilteredResource<Dog> {
             entityClassName = "io.tackle.commons.sample.entities.Dog",
             rel = "list"
     )
-    public Response list(@QueryParam("sort") List var1,
-                         @QueryParam("page") @DefaultValue("0") int var2,
-                         @QueryParam("size") @DefaultValue("20") int var3,
-                         @QueryParam("filter") @DefaultValue("") String filter,
+    public Response list(@QueryParam(QUERY_PARAM_SORT) @DefaultValue(DEFAULT_VALUE_SORT) List var1,
+                         @QueryParam(QUERY_PARAM_PAGE) @DefaultValue(DEFAULT_VALUE_PAGE) int var2,
+                         @QueryParam(QUERY_PARAM_SIZE) @DefaultValue(DEFAULT_VALUE_SIZE) int var3,
                          @Context UriInfo var4) throws Exception {
-        return ListFilteredResource.super.list(var1, var2, var3, filter, var4, false);
+        return ListFilteredResource.super.list(var1, var2, var3, var4, false);
     }
 
     // reported because HAL implementation was not able to find inherited @Path
@@ -51,11 +49,10 @@ public class DogListFilteredResource implements ListFilteredResource<Dog> {
     @Path("")
     @GET
     @Produces({"application/hal+json"})
-    public Response listHal(@QueryParam("sort") List var1,
-                            @QueryParam("page") @DefaultValue("0") int var2,
-                            @QueryParam("size") @DefaultValue("20") int var3,
-                            @QueryParam("filter") @DefaultValue("") String filter,
+    public Response listHal(@QueryParam(QUERY_PARAM_SORT) @DefaultValue(DEFAULT_VALUE_SORT) List var1,
+                            @QueryParam(QUERY_PARAM_PAGE) @DefaultValue(DEFAULT_VALUE_PAGE) int var2,
+                            @QueryParam(QUERY_PARAM_SIZE) @DefaultValue(DEFAULT_VALUE_SIZE) int var3,
                             @Context UriInfo var4) throws Exception {
-        return ListFilteredResource.super.list(var1, var2, var3, filter, var4, true);
+        return ListFilteredResource.super.list(var1, var2, var3, var4, true);
     }
 }
