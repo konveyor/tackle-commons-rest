@@ -25,7 +25,7 @@ public class KeycloakTestResource implements QuarkusTestResourceLifecycleManager
 
     @Override
     public void init(Map<String, String> initArgs) {
-        tag = initArgs.getOrDefault(IMAGE_TAG, "12.0.2");
+        tag = initArgs.getOrDefault(IMAGE_TAG, System.getProperty("keycloak.version"));
         realmName = initArgs.getOrDefault(REALM_NAME, "master");
         keycloak = new GenericContainer<>(String.format("%s:%s", KEYCLOAK_IMAGE, tag))
                 .withExposedPorts(8080, 8443)

@@ -21,6 +21,7 @@
     <testcontainers.version>1.15.2</testcontainers.version>
     <jacoco.version>0.8.6</jacoco.version>
     <system-lambda.version>1.2.0</system-lambda.version>
+    <keycloak.version>12.0.2</keycloak.version>
   </properties>
 
   <modules>
@@ -46,10 +47,20 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${surefire-plugin.version}</version>
+        <configuration>
+          <systemPropertyVariables>
+            <keycloak.version>${keycloak.version}</keycloak.version>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>${surefire-plugin.version}</version>
+        <configuration>
+          <systemPropertyVariables>
+            <keycloak.version>${keycloak.version}</keycloak.version>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>
@@ -95,6 +106,32 @@
           <classifier>runtime</classifier>
           <scope>test</scope>
           <version>${jacoco.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <!--
+        The profile is never used anywhere because it's a kind of trick for having dependabot to check keycloak.
+        Keycloak is used as a container within testcontainer leveraging this image
+        https://hub.docker.com/r/jboss/keycloak/tags
+        Dependabot is not able to check for new versions of images used in testcontainer.
+        So this useless dependency is used to have dependabot to check if a new version of 'keycloak-core'
+        has been released with the assumption that also a new container image should be released soon.
+        Since the version is declared in the "keycloak.version" property, the same property is injected
+        during tests execution as a system variable through surefire and failsafe plugins' configurations.
+        In this way dependabot checks if there's a new 'keycloak-core' version,
+        if yes, dependabot updates the 'keycloak.version' that will imply the new version will be used
+        during tests execution.
+
+        This is done considering that using always the latest Keycloak is mandatory to ensure security.
+      -->
+      <id>just-for-dependabot</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.keycloak</groupId>
+          <artifactId>keycloak-core</artifactId>
+          <version>${keycloak.version}</version>
+          <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>
