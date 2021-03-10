@@ -1,6 +1,5 @@
 package io.tackle.commons.sample.entities;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import io.tackle.commons.annotations.Filterable;
 import io.tackle.commons.entities.AbstractEntity;
 import org.hibernate.annotations.ResultCheckStyle;
@@ -18,8 +17,11 @@ public class Dog extends AbstractEntity {
     @Column(unique=true)
     @Filterable
     public String name;
-    public String race;
+    public String color;
     @ManyToOne
     @Filterable(filterName = "owner.name")
     public Person owner;
+    @ManyToOne
+    @Filterable(filterName = "breed.id")
+    public Breed breed;
 }

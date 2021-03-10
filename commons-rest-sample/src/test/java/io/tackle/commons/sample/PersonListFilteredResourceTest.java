@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.iterableWithSize;
 
 @QuarkusTest
 @QuarkusTestResource(value = PostgreSQLDatabaseTestResource.class,
@@ -41,11 +42,12 @@ import static org.hamcrest.Matchers.containsInRelativeOrder;
         given()
             .accept(ContentType.JSON)
             .param("sort", "name")
-            .when().get("/person")
+            .when().get(PATH)
             .then()
                 .statusCode(200)
-                .body("id", containsInRelativeOrder(1),
-                        "name", containsInRelativeOrder("c")
+                .body("", iterableWithSize(2),
+                        "id", containsInRelativeOrder(2, 4),
+                        "name", containsInRelativeOrder("c", "d")
                 );
     }
 

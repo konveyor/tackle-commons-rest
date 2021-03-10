@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -48,10 +49,11 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
             .when().get(PATH)
             .then()
                 .statusCode(200)
-                .body("id", containsInRelativeOrder(2),
+                .body("id", containsInRelativeOrder(7, 3, 5, 6),
                         "name", containsInRelativeOrder("a"),
-                        "race", containsInRelativeOrder("b"),
-                        "owner.id", containsInRelativeOrder(1),
+                        "color", containsInRelativeOrder("b"),
+                        "owner.id", iterableWithSize(3),
+                        "owner.id", containsInRelativeOrder(2, 2, 4),
                         "owner.name", containsInRelativeOrder("c")
                 );
     }
@@ -65,14 +67,17 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
             .then()
                 .log().all()
                 .statusCode(200)
-                .body("_embedded.dog.id", containsInRelativeOrder(2),
-                        "_embedded.dog.name", containsInRelativeOrder("a"),
-                        "_embedded.dog.race", containsInRelativeOrder("b"),
-                        "_embedded.dog.owner.name", containsInRelativeOrder("c"),
-                        "_embedded._metadata.totalCount", is(3),
+                .body("_embedded.dog", iterableWithSize(4),
+                "_embedded.dog.id", containsInRelativeOrder(6, 5, 7, 3),
+                        "_embedded.dog.name", containsInRelativeOrder("K", "e", "g", "a"),
+                        "_embedded.dog.color", containsInRelativeOrder("l", "f", "h", "b"),
+                        // important check to validate the Dog without owner was in the list ('_embedded.dog' has size 4)
+                        "_embedded.dog.owner.name", iterableWithSize(3),
+                        "_embedded.dog.owner.name", containsInRelativeOrder("d", "c", "c"),
+                        "_embedded._metadata.totalCount", is(4),
                         "_links.size()", is(4),
                         "_links.first.href", is("http://localhost:8081/dog?page=0&size=20&sort=-owner.name"),
-                        "total_count", is(3)
+                        "total_count", is(4)
                 );
     }
 
@@ -81,7 +86,7 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
         // existing field without @Filterable annotation
         given()
                 .accept("application/hal+json")
-                .queryParam("race", "b")
+                .queryParam("color", "b")
                 .when().get(PATH)
                 .then()
                 .statusCode(400);
@@ -100,10 +105,18 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .when().get(PATH)
                 .then()
                 .statusCode(400);
+
+        // 'id' must be a number
+        given()
+                .accept("application/hal+json")
+                .queryParam("breed.id", "a")
+                .when().get(PATH)
+                .then()
+                .statusCode(400);
     }
 
     @Test
-    public void testDogWeirdParameters() {
+    public void testDogPaginationWrongParameters() {
         given()
                 .accept("application/hal+json")
                 .queryParam("size", "-1")
@@ -111,9 +124,9 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .when().get(PATH)
                 .then()
                 .statusCode(200)
-                .body("_embedded.dog.size()", is(3),
+                .body("_embedded.dog.size()", is(4),
                         "_embedded.dog[0]._links.size()", is(5),
-                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/2"),
+                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/3"),
                         "_links.size()", is(4));
     }
 
@@ -125,15 +138,14 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .queryParam("page", "1")
                 .when().get(PATH)
                 .then()
-                .log().all()
                 .statusCode(200)
                 .body("_embedded.dog.size()", is(1),
-                        "_embedded.dog[0].id", is(4),
+                        "_embedded.dog[0].id", is(5),
                         "_embedded.dog[0].name", is("e"),
                         "_embedded.dog[0]._links.size()", is(5),
-                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/4"),
-                        "_embedded._metadata.totalCount", is(3),
-                        "total_count", is(3),
+                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/5"),
+                        "_embedded._metadata.totalCount", is(4),
+                        "total_count", is(4),
                         "_links.size()", is(6));
     }
 
@@ -149,8 +161,20 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .statusCode(200)
                 .body("_embedded.dog.size()", is(1),
                         "_embedded.dog[0]._links.size()", is(5),
-                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/2"),
+                        "_embedded.dog[0]._links.self.href", is("http://localhost:8081/dog/3"),
                         "_links.size()", is(4));
+    }
+
+    @Test
+    public void testDogFilterByBreedId() {
+        given()
+                .accept("application/json")
+                .queryParam("breed.id", "1")
+                .when().get(PATH)
+                .then()
+                .statusCode(200)
+                .body("", iterableWithSize(3),
+                        "color", containsInRelativeOrder("b", "f", "l"));
     }
 
     @Test
@@ -161,10 +185,10 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
 
     protected void testDogCreateUpdateAndDeleteEndpoint(boolean nativeExecution) {
         final String name = "Name";
-        final String race = "Race";
+        final String color = "Red";
         Dog dog = new Dog();
         dog.name = name;
-        dog.race = race;
+        dog.color = color;
 
         Response response = given()
                 .contentType(ContentType.JSON)
@@ -175,7 +199,7 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .statusCode(201).extract().response();
 
         assertEquals(name, response.path("name"));
-        assertEquals(race, response.path("race"));
+        assertEquals(color, response.path("color"));
         assertEquals("alice", response.path("createUser"));
         assertEquals("alice", response.path("updateUser"));
 
@@ -199,12 +223,12 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .log().all()
                 .statusCode(200)
                 .body("name", is(newName),
-                        "race", is(race));
+                        "color", is(color));
 
         if (!nativeExecution) {
             Dog updatedDogFromDb = dog.findById(dogId);
             assertEquals(newName, updatedDogFromDb.name);
-            assertEquals(race, updatedDogFromDb.race);
+            assertEquals(color, updatedDogFromDb.color);
             assertNotNull(updatedDogFromDb.createTime);
             assertNotNull(updatedDogFromDb.updateTime);
         }
