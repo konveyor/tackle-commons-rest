@@ -1,4 +1,4 @@
-package io.tackle.commons.resources;
+package io.tackle.commons.resources.query;
 
 import java.util.List;
 import java.util.Map;

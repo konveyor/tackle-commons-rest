@@ -1,7 +1,8 @@
-package io.tackle.commons.resources;
+package io.tackle.commons.resources.query;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import io.tackle.commons.annotations.Filterable;
+import io.tackle.commons.resources.ListFilteredResource;
 
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
@@ -22,11 +23,7 @@ import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
 // Class to cover the need of generating queries on our own
-
-// @TODO
-// this class should be refactored to have the needed interfaces to ensure 'build' method is available
-// only once all the mandatory fields have been provided.
-public class QueryBuilder<ENTITY extends PanacheEntity> {
+public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<ENTITY>, QueryBuild<ENTITY> {
 
     public static final String DEFAULT_SQL_ROOT_TABLE_ALIAS = "table";
     private final Class<ENTITY> panacheEntity;
@@ -38,11 +35,11 @@ public class QueryBuilder<ENTITY extends PanacheEntity> {
         filterableFields = getFilterableFieldsMap(panacheEntity);
     }
 
-    public static <ENTITY extends PanacheEntity> QueryBuilder<ENTITY> withPanacheEntity(Class<ENTITY> panacheEntity) {
+    public static <ENTITY extends PanacheEntity> QueryUriInfo<ENTITY> withPanacheEntity(Class<ENTITY> panacheEntity) {
         return new QueryBuilder<>(panacheEntity);
     }
 
-    public QueryBuilder<ENTITY> andUriInfo(UriInfo uriInfo) {
+    public QueryBuild<ENTITY> andUriInfo(UriInfo uriInfo) {
         this.uriInfo = uriInfo;
         return this;
     }

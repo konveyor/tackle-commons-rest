@@ -6,6 +6,8 @@ import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import io.quarkus.rest.data.panache.deployment.utils.ResourceName;
 import io.tackle.commons.resources.hal.HalCollectionEnrichedWrapper;
+import io.tackle.commons.resources.query.Query;
+import io.tackle.commons.resources.query.QueryBuilder;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.QueryParam;
