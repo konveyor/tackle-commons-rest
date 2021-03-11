@@ -31,11 +31,11 @@ import static org.hamcrest.Matchers.iterableWithSize;
                 // If needed, in the future, update it to a later fixed version
                 @ResourceArg(name = KeycloakTestResource.IMAGE_TAG, value = "12.0.3")
         }
-)public class PersonListFilteredResourceTest extends SecuredResourceTest {
+)public class BreedListFilteredResourceTest extends SecuredResourceTest {
 
     @BeforeAll
     public static void init() {
-        PATH = "/person";
+        PATH = "/breed";
     }
 
     @Test
@@ -46,24 +46,10 @@ import static org.hamcrest.Matchers.iterableWithSize;
             .when().get(PATH)
             .then()
             .statusCode(200)
-            .body("", iterableWithSize(3),
-                    "id", containsInRelativeOrder(2, 4, 8),
-                    "name", containsInRelativeOrder("c", "d", "m")
+            .body("", iterableWithSize(1),
+                    "id", containsInRelativeOrder(1),
+                    "name", containsInRelativeOrder("i")
             );
     }
-
-    @Test
-    public void testFilteredByOneToManyFieldListsHalEndpoint() {
-        given()
-                .accept("application/hal+json")
-                .queryParam("sort", "-id")
-                .queryParam("cani.name", "E")
-                .queryParam("cani.name", "G")
-                .when().get(PATH)
-                .then()
-                .statusCode(200)
-                .header("Link", is("<http://localhost:8081/person?page=0&size=20&sort=-id&cani.name=E&cani.name=G>; rel=\"last\""))
-                .body("_embedded.person.size()", is(2),
-                        "total_count", is(2));
-    }
+    
 }
