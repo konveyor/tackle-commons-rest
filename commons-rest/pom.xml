@@ -39,4 +39,40 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+       <groupId>org.apache.maven.plugins</groupId>
+       <artifactId>maven-compiler-plugin</artifactId>
+       <version>${compiler-plugin.version}</version>
+       <configuration>
+        <source>11</source>
+        <target>11</target>
+       </configuration>
+       <executions>
+       <!--
+       compilation in 2 steps to compile the FilterableProcessor first as requested
+       to be able to successfully build the whole library
+       https://issues.apache.org/jira/browse/MCOMPILER-97
+       -->
+        <execution>
+         <id>default-compile</id>
+         <configuration>
+          <compilerArgument>-proc:none</compilerArgument>
+          <includes>
+           <include>io/tackle/commons/annotations/processors/**</include>
+          </includes>
+         </configuration>
+        </execution>
+        <execution>
+         <id>compile-everything-else</id>
+         <phase>compile</phase>
+         <goals>
+          <goal>compile</goal>
+         </goals>
+        </execution>
+       </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

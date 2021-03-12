@@ -1,6 +1,7 @@
 package io.tackle.commons.sample.entities;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import io.tackle.commons.annotations.Filterable;
 import io.tackle.commons.entities.AbstractEntity;
 import org.hibernate.annotations.ResultCheckStyle;
 import org.hibernate.annotations.SQLDelete;
@@ -20,10 +21,27 @@ public class Person extends AbstractEntity {
     public String name;
     @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
     @JsonBackReference
+    @Filterable(filterName = "cani.name")
     public List<Dog> dogs = new ArrayList<>();
+    @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
+    @JsonBackReference("catsReference")
+    @Filterable(filterName = "cats.name")
+    public List<Cat> cats = new ArrayList<>();
+    @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
+    @JsonBackReference("horsesReference")
+    public List<Horse> horses = new ArrayList<>();
+    @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
+    @JsonBackReference("fishesReference")
+    // this is wrong and FilterableProcessor must check this and prevent it from happening
+    // @TODO
+    @Filterable(filterName = "fishes.foo")
+    public List<Fish> fishes = new ArrayList<>();
 
     @PreRemove
     private void preRemove() {
         dogs.forEach(dog -> dog.owner = null);
+        cats.forEach(cat -> cat.owner = null);
+        horses.forEach(horse -> horse.owner = null);
+        fishes.forEach(fish -> fish.owner = null);
     }
 }

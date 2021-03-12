@@ -5,13 +5,10 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Page;
 import io.quarkus.panache.common.Sort;
 import io.quarkus.rest.data.panache.deployment.utils.ResourceName;
-import io.tackle.commons.annotations.Filterable;
-import io.tackle.commons.resources.filter.Filter;
-import io.tackle.commons.resources.filter.FilterBuilder;
 import io.tackle.commons.resources.hal.HalCollectionEnrichedWrapper;
+import io.tackle.commons.resources.query.Query;
+import io.tackle.commons.resources.query.QueryBuilder;
 
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToOne;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -26,7 +23,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public interface ListFilteredResource<Entity extends PanacheEntity> extends TypedWebMethod<Entity> {
 
@@ -52,7 +48,6 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
     String DEFAULT_VALUE_PAGE = "0";
     String QUERY_PARAM_SORT = "sort";
     String DEFAULT_VALUE_SORT = "id";
-    String DEFAULT_SQL_ROOT_TABLE_ALIAS = "table";
 
     default Response list(@QueryParam(QUERY_PARAM_SORT) @DefaultValue(DEFAULT_VALUE_SORT) List var1,
                          @QueryParam(QUERY_PARAM_PAGE) @DefaultValue(DEFAULT_VALUE_PAGE) int var2,
@@ -78,13 +73,13 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
             if (!((String) var9).startsWith("-")) {
                 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
                 // Due to the need of generating queries on our own, sort parameters must have a prefix
-                var10.and(String.format("%s.%s", DEFAULT_SQL_ROOT_TABLE_ALIAS, (String) var9));
+                var10.and(String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, (String) var9));
             } else {
                 String var11 = ((String) var9).substring(1);
                 Sort.Direction var12 = Sort.Direction.Descending;
                 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
                 // Due to the need of generating queries on our own, sort parameters must have a prefix
-                var10.and(String.format("%s.%s", DEFAULT_SQL_ROOT_TABLE_ALIAS, var11), var12);
+                var10.and(String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, var11), var12);
             }
         }
 
@@ -103,11 +98,11 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         }
 
         // Solution based on using the different query parameters (continues below with same comment)
-        final Filter queryFilter = FilterBuilder.withUriInfo(var4).andAcceptedFilters(getFilterableFields()).build();
+        final Query query = QueryBuilder.withPanacheEntity(getPanacheEntityType()).andUriInfo(var4).build();
 
         Page var16 = Page.of(var13, var14);
         // Change to manage filtering
-        int var28 = $$_page_count_list(var16, generateCountQuery(queryFilter.getQuery()), queryFilter.getQueryParameters());
+        int var28 = $$_page_count_list(var16, query.getCountQuery(), query.getQueryParameters());
         ArrayList var26 = new ArrayList(4);
         Page var17 = var16.first();
         UriBuilder var19 = var4.getAbsolutePathBuilder();
@@ -120,7 +115,7 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         Object[] var23 = new Object[0];
         // start - add missing info
         var19.queryParam("sort", var1.toArray());
-        addQueryParams(var19, queryFilter);
+        addQueryParams(var19, query);
         // end - add missing info
         Link.Builder var24 = Link.fromUri(var19.build(var23));
         var24.rel("first");
@@ -139,7 +134,7 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         Object[] var36 = new Object[0];
         // start - add missing info
         var32.queryParam("sort", var1.toArray());
-        addQueryParams(var32, queryFilter);
+        addQueryParams(var32, query);
         // end - add missing info
         Link.Builder var37 = Link.fromUri(var32.build(var36));
         var37.rel("last");
@@ -160,7 +155,7 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
             Object[] var48 = new Object[0];
             // start - add missing info
             var44.queryParam("sort", var1.toArray());
-            addQueryParams(var44, queryFilter);
+            addQueryParams(var44, query);
             // end - add missing info
             Link.Builder var49 = Link.fromUri(var44.build(var48));
             var49.rel("previous");
@@ -183,7 +178,7 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
             Object[] var60 = new Object[0];
             // start - add missing info
             var56.queryParam("sort", var1.toArray());
-            addQueryParams(var56, queryFilter);
+            addQueryParams(var56, query);
             // end - add missing info
             Link.Builder var61 = Link.fromUri(var56.build(var60));
             var61.rel("next");
@@ -196,13 +191,13 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         Object[] var65 = ((List) var26).toArray((Object[]) var64);
         // Change to manage filtering
         // Solution based on using the different query parameters
-        List entities = list(var16, var10, generateQuery(queryFilter.getQuery()), queryFilter.getQueryParameters());
+        List entities = list(var16, var10, query.getQuery(), query.getQueryParameters());
         Response.ResponseBuilder var66 = null;
         if (!hal) var66 = Response.ok(entities);
         else {
             HalCollectionEnrichedWrapper var67 = new HalCollectionEnrichedWrapper((Collection) entities, getPanacheEntityType(),
                     ResourceName.fromClass(getPanacheEntityType().getName()),
-                    (long) getPanacheEntityType().getMethod("count", String.class, Map.class).invoke(null, generateCountQuery(queryFilter.getQuery()), queryFilter.getQueryParameters()));
+                    (long) getPanacheEntityType().getMethod("count", String.class, Map.class).invoke(null, query.getCountQuery(), query.getQueryParameters()));
             var67.addLinks((Link[]) var65);
             var66 = Response.ok(var67);
         }
@@ -210,22 +205,8 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         return var66.build();
     }
 
-    default List<String> getFilterableFields(Class<Entity> entityClass) {
-        return Arrays.stream(entityClass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Filterable.class))
-                .map(field -> {
-                    final String value = field.getAnnotation(Filterable.class).filterName();
-                    return value.isEmpty() ? field.getName() : value;
-                })
-                .collect(Collectors.toList());
-    }
-
-    default List<String> getFilterableFields() {
-        return getFilterableFields(getPanacheEntityType());
-    }
-
-    default void addQueryParams(UriBuilder uriBuilder, Filter filter) {
-        filter.getRawQueryParams().forEach((key, params) -> params.forEach(param -> uriBuilder.queryParam(key, param)));
+    default void addQueryParams(UriBuilder uriBuilder, Query query) {
+        query.getRawQueryParams().forEach((key, params) -> params.forEach(param -> uriBuilder.queryParam(key, param)));
     }
 
     /**
@@ -243,33 +224,6 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         PanacheQuery var3 = (PanacheQuery) getPanacheEntityType().getMethod("find", String.class, Sort.class, Map.class).invoke(null, query, var2, queryParams);
         var3.page(var1);
         return var3.list();
-    }
-
-    // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
-    // Method to cover the need of generating queries on our own
-    default String generateCountQuery(String filterQuery) {
-        return String.format("FROM %s %s %s",getPanacheEntityType().getSimpleName(), DEFAULT_SQL_ROOT_TABLE_ALIAS, filterQuery);
-    }
-
-    // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
-    // Method to cover the need of generating queries on our own
-    default String generateQuery(String filterQuery) {
-        StringBuilder queryBuilder = new StringBuilder(String.format("SELECT %s FROM ", DEFAULT_SQL_ROOT_TABLE_ALIAS));
-        queryBuilder.append(getPanacheEntityType().getSimpleName());
-        queryBuilder.append(String.format(" %s ", DEFAULT_SQL_ROOT_TABLE_ALIAS));
-        queryBuilder.append(
-            Arrays.stream(getPanacheEntityType().getDeclaredFields())
-                .filter(field ->
-                        // 'ManyToOne' has been tested and it's something we must have
-                        (field.isAnnotationPresent(ManyToOne.class) ||
-                        // 'OneToOne' has just been added for sake of having it done
-                        // without a real use case yet so it can be discussed later
-                        field.isAnnotationPresent(OneToOne.class))
-                ).map(field -> String.format("LEFT JOIN %s.%s ", DEFAULT_SQL_ROOT_TABLE_ALIAS, field.getName()))
-                .collect(Collectors.joining())
-        );
-        queryBuilder.append(filterQuery);
-        return queryBuilder.toString();
     }
 
 }
