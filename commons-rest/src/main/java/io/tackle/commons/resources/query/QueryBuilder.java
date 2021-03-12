@@ -146,7 +146,12 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
     private boolean isFieldToBeJoined(Field field, String queryParamName) {
         return field.isAnnotationPresent(OneToMany.class) &&
                 field.isAnnotationPresent(Filterable.class) &&
-                !field.getAnnotation(Filterable.class).filterName().isEmpty() &&
+                /**
+                 * The 'isEmpty' check is not needed anymore because the {@link io.tackle.commons.annotations.processors.FilterableProcessor}
+                 * prevents at build time having a {@link javax.persistence.OneToMany} annotated field
+                 * without a valid {@link Filterable#filterName()} value
+                 */
+                // !field.getAnnotation(Filterable.class).filterName().isEmpty() &&
                 field.getAnnotation(Filterable.class).filterName().equalsIgnoreCase(queryParamName);
     }
 }

@@ -32,9 +32,9 @@ public class Person extends AbstractEntity {
     public List<Horse> horses = new ArrayList<>();
     @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
     @JsonBackReference("fishesReference")
-    // this should not be allowed really because with a referenced entity
-    // it's impossible to know which field to use (or could we apply 'id' by default?)
-    @Filterable
+    // this is wrong and FilterableProcessor must check this and prevent it from happening
+    // @TODO
+    @Filterable(filterName = "fishes.foo")
     public List<Fish> fishes = new ArrayList<>();
 
     @PreRemove
