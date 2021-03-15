@@ -4,6 +4,7 @@ import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import io.tackle.commons.annotations.Filterable;
 import io.tackle.commons.resources.ListFilteredResource;
 
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -138,13 +139,13 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                         final String value = field.getAnnotation(Filterable.class).filterName();
                         return value.isEmpty() ? field.getName() : value;
                     },
-                    field -> field.isAnnotationPresent(OneToMany.class)));
+                    field -> (isToManyAnnotated(field))));
     }
 
     // Method to evaluate if a specific class' field must be part of the join because to fulfill a filter coming
     // from a query parameter in the request
-    private boolean isFieldToBeJoined(Field field, String queryParamName) {
-        return field.isAnnotationPresent(OneToMany.class) &&
+    private static boolean isFieldToBeJoined(Field field, String queryParamName) {
+        return isToManyAnnotated(field) &&
                 field.isAnnotationPresent(Filterable.class) &&
                 /**
                  * The 'isEmpty' check is not needed anymore because the {@link io.tackle.commons.annotations.processors.FilterableProcessor}
@@ -153,5 +154,9 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                  */
                 // !field.getAnnotation(Filterable.class).filterName().isEmpty() &&
                 field.getAnnotation(Filterable.class).filterName().equalsIgnoreCase(queryParamName);
+    }
+
+    private static boolean isToManyAnnotated(Field field) {
+        return field.isAnnotationPresent(OneToMany.class) || field.isAnnotationPresent(ManyToMany.class);
     }
 }
