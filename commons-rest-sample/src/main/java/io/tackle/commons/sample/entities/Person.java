@@ -9,6 +9,9 @@ import org.hibernate.annotations.Where;
 
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
 import javax.persistence.PreRemove;
 import java.util.ArrayList;
@@ -36,6 +39,13 @@ public class Person extends AbstractEntity {
     // @TODO
     @Filterable(filterName = "fishes.foo")
     public List<Fish> fishes = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(
+            name = "person_book",
+            joinColumns = @JoinColumn(name = "person_id"),
+            inverseJoinColumns = @JoinColumn(name = "book_id"))
+    @Filterable(filterName = "books.title")
+    public List<Book> books = new ArrayList<>();
 
     @PreRemove
     private void preRemove() {
