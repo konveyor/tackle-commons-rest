@@ -1,16 +1,20 @@
 package io.tackle.commons.resources.query;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import io.tackle.commons.annotations.CheckType;
 import io.tackle.commons.annotations.Filterable;
 import io.tackle.commons.resources.ListFilteredResource;
 
+import javax.persistence.ElementCollection;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -18,18 +22,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
 // Class to cover the need of generating queries on our own
 public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<ENTITY>, QueryBuild<ENTITY> {
 
     public static final String DEFAULT_SQL_ROOT_TABLE_ALIAS = "table";
+    private static final QueryParameterGenerators EQUAL_QUERY_PARAMETER_GENERATORS = new QueryParameterGenerators();
     private final Class<ENTITY> panacheEntity;
     private UriInfo uriInfo;
-    private final Map<String, Boolean> filterableFields;
+    private final Map<String, Field> filterableFields;
+
+    static {
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Long.class, value -> {
+            try {
+                return Long.valueOf(value);
+            } catch (NumberFormatException e) {
+                throw new BadRequestException("Malformed filter value");
+            }
+        });
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(String.class, Function.identity());
+    }
 
     QueryBuilder(Class<ENTITY> panacheEntity) {
         this.panacheEntity = panacheEntity;
@@ -69,17 +84,14 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                 // if the filter name is not one of the fields annotated as Filterable
                 // then the request is bad and the user should not repeat it without modifications
                 // https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1
-                if (!filterableFields.containsKey(queryParamName)) throw new WebApplicationException("Malformed syntax for a filter name", BAD_REQUEST);
+                if (!filterableFields.containsKey(queryParamName)) throw new BadRequestException("Malformed syntax for a filter name");
 
                 // build the FROM
                 // the 'OneToMany' creates the expected "duplication" effect in the result set because of the relation's cardinality (1:M => 1 X M)
                 // so it's added only if the queryParamName refers to a 'OneToMany' relationship
-                fromBuilder.append(
-                    Arrays.stream(panacheEntity.getDeclaredFields())
-                        .filter(field -> isFieldToBeJoined(field, queryParamName))
-                        .map(field -> String.format("JOIN %s.%s %s ", DEFAULT_SQL_ROOT_TABLE_ALIAS, field.getName(), getTableNameAlias(queryParamName)))
-                        .collect(Collectors.joining())
-                );
+                Field field = filterableFields.get(queryParamName);
+                if (isToManyAssociation(field))
+                    fromBuilder.append(String.format("JOIN %s.%s %s ", DEFAULT_SQL_ROOT_TABLE_ALIAS, field.getName(), getTableNameAlias(queryParamName)));
 
                 // build the WHERE
                 if (whereBuilder.length() != 0) whereBuilder.append(" and ");
@@ -94,14 +106,17 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                     //
                     // filter works with a `LIKE` case insensitive approach for every param but the 'id' which requires a check for equality
                     if (queryParamName.endsWith(".id")) {
-                        whereBuilder.append(String.format("%s.%s = :%s",  getTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
+                        whereBuilder.append(String.format("%s%s = :%s",  getWhereTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
                         try {
                             queryParameters.put(randomParameterKey, Long.valueOf(value));
                         } catch (NumberFormatException e) {
-                            throw new WebApplicationException("Malformed filter value", BAD_REQUEST);
+                            throw new BadRequestException("Malformed filter value");
                         }
-                    } else {
-                        whereBuilder.append(String.format("lower(%s.%s) LIKE lower(:%s)", getTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
+                    } else if (CheckType.EQUAL.equals(field.getAnnotation(Filterable.class).check())){
+                        whereBuilder.append(String.format("%s%s = :%s", getWhereTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
+                        queryParameters.put(randomParameterKey, EQUAL_QUERY_PARAMETER_GENERATORS.getQueryParameterValue(getType(field), value));
+                    } else if (CheckType.LIKE.equals(field.getAnnotation(Filterable.class).check())) {
+                        whereBuilder.append(String.format("lower(%s%s) LIKE lower(:%s)", getWhereTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
                         queryParameters.put(randomParameterKey, String.format("%%%s%%", value));
                     }
                     rawQueryParams.computeIfAbsent(queryParamName, k -> new ArrayList<>()).add(value);
@@ -112,26 +127,31 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
         String fromAndWhereQuery = fromBuilder.append(whereBuilder).toString();
         return Query.withQuery(String.format("SELECT %s %s", DEFAULT_SQL_ROOT_TABLE_ALIAS, fromAndWhereQuery)).andCountQuery(fromAndWhereQuery).andParameters(queryParameters).andRawQueryParams(rawQueryParams);
     }
-    
+
     private String getTableNameAlias(String queryParamName) {
-        return filterableFields.get(queryParamName) ?  
-                queryParamName.substring(0, queryParamName.indexOf(".")) : 
-                DEFAULT_SQL_ROOT_TABLE_ALIAS; 
+        if (filterableFields.get(queryParamName).isAnnotationPresent(ElementCollection.class)) return "";
+        else if (isToManyAssociation(filterableFields.get(queryParamName))) return queryParamName.substring(0, queryParamName.indexOf("."));
+        else return DEFAULT_SQL_ROOT_TABLE_ALIAS;
+    }
+
+    private String getWhereTableNameAlias(String queryParamName) {
+        final String tableNameAlias = getTableNameAlias(queryParamName);
+        return tableNameAlias.isEmpty() ? tableNameAlias : tableNameAlias + ".";
     }
 
     private String getPropertyName(String queryParamName) {
-        return filterableFields.get(queryParamName) ?  queryParamName.substring(queryParamName.indexOf(".") + 1) : queryParamName; 
+        return isToManyAssociation(filterableFields.get(queryParamName)) ?  queryParamName.substring(queryParamName.indexOf(".") + 1) : queryParamName;
     }
 
     /**
      * Method to have a Map with key the HQL field name and with value a Boolean true is the field refers
      * to a  {@link javax.persistence.OneToMany} relationship, false otherwise.
-     * 
-     * @param entityClass
+     *
      * @param <ENTITY>
+     * @param entityClass
      * @return
      */
-    private static <ENTITY extends PanacheEntity> Map<String, Boolean> getFilterableFieldsMap(Class<ENTITY> entityClass) {
+    private static <ENTITY extends PanacheEntity> Map<String, Field> getFilterableFieldsMap(Class<ENTITY> entityClass) {
         return Arrays.stream(entityClass.getDeclaredFields())
             .filter(field -> field.isAnnotationPresent(Filterable.class))
             .collect(
@@ -139,24 +159,23 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                         final String value = field.getAnnotation(Filterable.class).filterName();
                         return value.isEmpty() ? field.getName() : value;
                     },
-                    field -> (isToManyAnnotated(field))));
+                    field -> field));
     }
 
-    // Method to evaluate if a specific class' field must be part of the join because to fulfill a filter coming
-    // from a query parameter in the request
-    private static boolean isFieldToBeJoined(Field field, String queryParamName) {
-        return isToManyAnnotated(field) &&
-                field.isAnnotationPresent(Filterable.class) &&
-                /**
-                 * The 'isEmpty' check is not needed anymore because the {@link io.tackle.commons.annotations.processors.FilterableProcessor}
-                 * prevents at build time having a {@link javax.persistence.OneToMany} annotated field
-                 * without a valid {@link Filterable#filterName()} value
-                 */
-                // !field.getAnnotation(Filterable.class).filterName().isEmpty() &&
-                field.getAnnotation(Filterable.class).filterName().equalsIgnoreCase(queryParamName);
+    private static boolean isToManyAssociation(Field field) {
+        return field.isAnnotationPresent(OneToMany.class) ||
+                field.isAnnotationPresent(ManyToMany.class) ||
+                field.isAnnotationPresent(ElementCollection.class);
     }
 
-    private static boolean isToManyAnnotated(Field field) {
-        return field.isAnnotationPresent(OneToMany.class) || field.isAnnotationPresent(ManyToMany.class);
+    protected static Class<?> getType(Field field) {
+        Type type = field.getGenericType();
+        if (type instanceof Class) return (Class<?>) type;
+        else if (type instanceof ParameterizedType) {
+            Type genericTypeArgument = ((ParameterizedType) type).getActualTypeArguments()[0];
+            return (Class<?>) genericTypeArgument;
+        } else {
+            throw new BadRequestException("Not supported filter");
+        }
     }
 }
