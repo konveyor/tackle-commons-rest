@@ -19,6 +19,12 @@ public class QueryParameterGenerators {
     }
 
     public <TYPE> TYPE getQueryParameterValue(Class<TYPE> type, String source) {
-        return type.cast(generators.getOrDefault(type, value -> {throw new BadRequestException("Malformed filter value");}).apply(source));
+        try {
+            return type.cast(generators.getOrDefault(type, value -> {
+                throw new BadRequestException("Malformed filter value");
+            }).apply(source));
+        } catch (NumberFormatException nfe) {
+            throw new BadRequestException("Malformed filter value");
+        }
     }
 }

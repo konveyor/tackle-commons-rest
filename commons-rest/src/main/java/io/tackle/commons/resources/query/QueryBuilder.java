@@ -36,14 +36,14 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
     private final Map<String, Field> filterableFields;
 
     static {
-        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Long.class, value -> {
-            try {
-                return Long.valueOf(value);
-            } catch (NumberFormatException e) {
-                throw new BadRequestException("Malformed filter value");
-            }
-        });
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Long.class, Long::valueOf);
         EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(String.class, Function.identity());
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Integer.class, Integer::valueOf);
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Byte.class, Byte::valueOf);
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Short.class, Short::valueOf);
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Float.class, Float::valueOf);
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Double.class, Double::valueOf);
+        EQUAL_QUERY_PARAMETER_GENERATORS.putQueryParameterGenerator(Boolean.class, Boolean::valueOf);
     }
 
     QueryBuilder(Class<ENTITY> panacheEntity) {
@@ -168,6 +168,12 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                 field.isAnnotationPresent(ElementCollection.class);
     }
 
+    /**
+     * @param field
+     * @return
+     * Long foo -> returns Long.class
+     * Set<String> foo -> return String.class
+     */
     protected static Class<?> getType(Field field) {
         Type type = field.getGenericType();
         if (type instanceof Class) return (Class<?>) type;
