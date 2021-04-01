@@ -13,4 +13,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Filterable {
     String filterName() default "";
+    CheckType check() default CheckType.LIKE;
 }
