@@ -107,11 +107,8 @@ public class QueryBuilder<ENTITY extends PanacheEntity> implements QueryUriInfo<
                     // filter works with a `LIKE` case insensitive approach for every param but the 'id' which requires a check for equality
                     if (queryParamName.endsWith(".id")) {
                         whereBuilder.append(String.format("%s%s = :%s",  getWhereTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
-                        try {
-                            queryParameters.put(randomParameterKey, Long.valueOf(value));
-                        } catch (NumberFormatException e) {
-                            throw new BadRequestException("Malformed filter value");
-                        }
+                        // this is based on the assumption that the entity has a Long id, i.e. it's a PanacheEntity
+                        queryParameters.put(randomParameterKey, EQUAL_QUERY_PARAMETER_GENERATORS.getQueryParameterValue(Long.class, value));
                     } else if (CheckType.EQUAL.equals(field.getAnnotation(Filterable.class).check())){
                         whereBuilder.append(String.format("%s%s = :%s", getWhereTableNameAlias(queryParamName), getPropertyName(queryParamName), randomParameterKey));
                         queryParameters.put(randomParameterKey, EQUAL_QUERY_PARAMETER_GENERATORS.getQueryParameterValue(getType(field), value));
