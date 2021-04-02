@@ -71,14 +71,14 @@ import static org.hamcrest.Matchers.iterableWithSize;
     public void testFilteredByManyToManyFieldListsHalEndpoint() {
         given()
                 .accept("application/hal+json")
-                .queryParam("sort", "-id,horses.size")
+                .queryParam("sort", "-id,horses.size()")
                 .queryParam("books.title", "o")
                 .queryParam("books.title", "another")
                 .when().get(PATH)
                 .then()
                 .log().all()
                 .statusCode(200)
-                .header("Link", is("<http://localhost:8081/person?page=0&size=20&sort=-id%2Chorses.size&books.title=o&books.title=another>; rel=\"last\""))
+                .header("Link", is("<http://localhost:8081/person?page=0&size=20&sort=-id%2Chorses.size%28%29&books.title=o&books.title=another>; rel=\"last\""))
                 .body("_embedded.person.size()", is(2),
                         "_embedded.person.id", containsInRelativeOrder(8, 2),
                         "_embedded.person[1].books", iterableWithSize(2),

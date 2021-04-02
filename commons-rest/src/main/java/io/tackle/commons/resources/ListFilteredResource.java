@@ -73,13 +73,13 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
             if (!((String) var9).startsWith("-")) {
                 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
                 // Due to the need of generating queries on our own, sort parameters must have a prefix
-                var10.and(String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, (String) var9));
+                var10.and(getSortValue((String) var9));
             } else {
                 String var11 = ((String) var9).substring(1);
                 Sort.Direction var12 = Sort.Direction.Descending;
                 // https://github.com/quarkusio/quarkus/issues/15088#issuecomment-783454416
                 // Due to the need of generating queries on our own, sort parameters must have a prefix
-                var10.and(String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, var11), var12);
+                var10.and(getSortValue(var11), var12);
             }
         }
 
@@ -226,4 +226,9 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         return var3.list();
     }
 
+    default String getSortValue(String sortQueryParam) {
+        if (sortQueryParam.endsWith(".size()"))  {
+            return String.format("size(%s.%s)", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam.substring(0, sortQueryParam.lastIndexOf('.')));
+        } else return String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam);
+    }
 }
