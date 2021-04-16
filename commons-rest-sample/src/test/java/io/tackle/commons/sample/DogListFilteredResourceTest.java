@@ -247,5 +247,4 @@ public class DogListFilteredResourceTest extends SecuredResourceTest {
                 .statusCode(404);
 
     }
-
 }

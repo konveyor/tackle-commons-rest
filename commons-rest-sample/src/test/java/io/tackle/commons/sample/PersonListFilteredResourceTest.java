@@ -86,4 +86,47 @@ import static org.hamcrest.Matchers.iterableWithSize;
                         "_embedded.person[1].books.title", containsInRelativeOrder("n", "o"),
                         "total_count", is(2));
     }
+
+    @Test
+    // https://github.com/konveyor/tackle-commons-rest/issues/48
+    public void testFilteredByIdListsHalEndpoint() {
+        given()
+                .accept("application/hal+json")
+                .queryParam("sort", "-id,horses.size()")
+                .queryParam("id", "4")
+                .queryParam("id", "8")
+                .when()
+                .get(PATH)
+                .then()
+                .log().body()
+                .statusCode(200)
+                .header("Link", is("<http://localhost:8081/person?page=0&size=20&sort=-id%2Chorses.size%28%29&id=4&id=8>; rel=\"last\""))
+                .body("_embedded.person.size()", is(2),
+                        "_embedded.person.id", containsInRelativeOrder(8, 4),
+                        "_embedded.person[0].books", iterableWithSize(1),
+                        "_embedded.person[0].books[0].id", is(10),
+                        "_embedded.person[1].dogs", iterableWithSize(1),
+                        "total_count", is(2));
+    }
+
+    @Test
+    // https://github.com/konveyor/tackle-commons-rest/issues/47
+    public void testFilteringTheSamePersonByMultipleBooks() {
+        given()
+                .accept("application/hal+json")
+                .queryParam("sort", "-name")
+                .queryParam("books.title", "n")
+                .queryParam("books.title", "o")
+                .when()
+                .get(PATH)
+                .then()
+                .log().body()
+                .statusCode(200)
+                .body("_embedded.person.size()", is(2),
+                        "_embedded.person.id", containsInRelativeOrder(8, 2),
+                        "_embedded.person[1].books.size()", is(2),
+                        "_embedded.person[0]._links.size()", is(5),
+                        "_embedded.person[0]._links.self.href", is("http://localhost:8081/person/8"),
+                        "_links.size()", is(4));
+    }
 }

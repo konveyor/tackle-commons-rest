@@ -113,6 +113,7 @@ import static org.hamcrest.Matchers.iterableWithSize;
     }
 
     @Test
+    // https://github.com/konveyor/tackle-commons-rest/issues/47
     public void testListFilteredByDogName() {
         Dog dog = new Dog();
         dog.name = "aa";

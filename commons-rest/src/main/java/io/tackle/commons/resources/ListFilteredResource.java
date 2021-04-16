@@ -1,5 +1,7 @@
 package io.tackle.commons.resources;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Page;
@@ -191,13 +193,14 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         Object[] var65 = ((List) var26).toArray((Object[]) var64);
         // Change to manage filtering
         // Solution based on using the different query parameters
-        List entities = list(var16, var10, query.getQuery(), query.getQueryParameters());
+        // basic solution for having a distinct implementation (more details in QueryBuilder.build() method)
+        List entities = Lists.newArrayList(Sets.newLinkedHashSet(list(var16, var10, query)));
         Response.ResponseBuilder var66 = null;
         if (!hal) var66 = Response.ok(entities);
         else {
             HalCollectionEnrichedWrapper var67 = new HalCollectionEnrichedWrapper((Collection) entities, getPanacheEntityType(),
                     ResourceName.fromClass(getPanacheEntityType().getName()),
-                    (long) getPanacheEntityType().getMethod("count", String.class, Map.class).invoke(null, query.getCountQuery(), query.getQueryParameters()));
+                    totalCount(query));
             var67.addLinks((Link[]) var65);
             var66 = Response.ok(var67);
         }
@@ -220,8 +223,13 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
         return var2.pageCount();
     }
 
-    default List list(Page var1, Sort var2, String query, Map<String, Object> queryParams) throws Exception {
-        PanacheQuery var3 = (PanacheQuery) getPanacheEntityType().getMethod("find", String.class, Sort.class, Map.class).invoke(null, query, var2, queryParams);
+    default long totalCount(Query query) throws Exception {
+        PanacheQuery var2 = (PanacheQuery) getPanacheEntityType().getMethod("find", String.class, Map.class).invoke(null, query.getCountQuery(), query.getQueryParameters());
+        return var2.count();
+    }
+
+    default List list(Page var1, Sort var2, Query query) throws Exception {
+        PanacheQuery var3 = (PanacheQuery) getPanacheEntityType().getMethod("find", String.class, Sort.class, Map.class).invoke(null, query.getQuery(), var2, query.getQueryParameters());
         var3.page(var1);
         return var3.list();
     }
