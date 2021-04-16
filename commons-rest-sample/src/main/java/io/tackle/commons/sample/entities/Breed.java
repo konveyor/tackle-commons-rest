@@ -33,6 +33,7 @@ public class Breed extends AbstractEntity {
     public Set<String> translations = new HashSet<>();
     @OneToMany(mappedBy = "breed", fetch = FetchType.LAZY)
     @JsonBackReference
+    @Filterable(filterName = "dogs.name")
     public List<Dog> dogs = new ArrayList<>();
 
     @PreRemove

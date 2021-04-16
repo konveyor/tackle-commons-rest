@@ -4,6 +4,8 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.common.ResourceArg;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import io.tackle.commons.sample.entities.Breed;
+import io.tackle.commons.sample.entities.Dog;
 import io.tackle.commons.testcontainers.KeycloakTestResource;
 import io.tackle.commons.testcontainers.PostgreSQLDatabaseTestResource;
 import io.tackle.commons.tests.SecuredResourceTest;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInRelativeOrder;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.iterableWithSize;
 
 @QuarkusTest
@@ -107,5 +110,45 @@ import static org.hamcrest.Matchers.iterableWithSize;
                         "name", containsInRelativeOrder("i", "s", "r"),
                         "origin", containsInRelativeOrder("j", "11", "1")
                 );
+    }
+
+    @Test
+    public void testListFilteredByDogName() {
+        Dog dog = new Dog();
+        dog.name = "aa";
+        dog.color = "b";
+        Breed breed = new Breed();
+        breed.id = 1L;
+        dog.breed = breed;
+
+        dog.id = Long.valueOf(given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(dog)
+                .when().post("/dog")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("id")
+                .toString());
+
+        given()
+                .accept("application/hal+json")
+                .queryParam("dogs.name", "a")
+                .when()
+                .get(PATH)
+                .then()
+                .statusCode(200)
+                .log().body()
+                .body("_embedded.breed.size()", is(1),
+                        "_embedded.breed.name", containsInRelativeOrder("i"),
+                        "total_count", is(1));
+
+        given()
+                .pathParam("id", dog.id)
+                .when()
+                .delete("/dog/{id}")
+                .then()
+                .statusCode(204);
     }
 }
