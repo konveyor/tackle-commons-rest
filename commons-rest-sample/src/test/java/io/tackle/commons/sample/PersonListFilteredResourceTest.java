@@ -4,6 +4,8 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.common.ResourceArg;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import io.tackle.commons.sample.entities.Dog;
+import io.tackle.commons.sample.entities.Person;
 import io.tackle.commons.testcontainers.KeycloakTestResource;
 import io.tackle.commons.testcontainers.PostgreSQLDatabaseTestResource;
 import io.tackle.commons.tests.SecuredResourceTest;
@@ -128,5 +130,108 @@ import static org.hamcrest.Matchers.iterableWithSize;
                         "_embedded.person[0]._links.size()", is(5),
                         "_embedded.person[0]._links.self.href", is("http://localhost:8081/person/8"),
                         "_links.size()", is(4));
+    }
+
+    @Test
+    // https://github.com/konveyor/tackle-commons-rest/issues/53
+    public void testSortByCollectionSizeWithDeletedEntities() {
+        // initial situation:
+        // person #2 has 2 dogs
+        // person #4 has 1 dog
+        // person #8 has no dogs
+        given()
+                .accept("application/hal+json")
+                .queryParam("sort", "-dogs.size()")
+                .when()
+                .get(PATH)
+                .then()
+                .statusCode(200)
+                .body("_embedded.person.size()", is(3),
+                        "_embedded.person.id", containsInRelativeOrder(2, 4, 8),
+                        "_embedded.person[0].dogs.size()", is(2),
+                        "_embedded.person[1].dogs.size()", is(1),
+                        "_embedded.person[2].dogs.size()", is(0));
+
+        // add 2 more dogs to person #4
+        Person d = new Person();
+        d.id = 4L;
+        Dog foo = new Dog();
+        foo.name = "foo";
+        foo.owner = d;
+        foo.id = Long.valueOf(given()
+                .contentType("application/json")
+                .body(foo)
+                .when()
+                .post("/dog")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("id")
+                .toString());
+
+        Dog bar = new Dog();
+        bar.name = "bar";
+        bar.owner = d;
+        bar.id = Long.valueOf(given()
+                .contentType("application/json")
+                .body(bar)
+                .when()
+                .post("/dog")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("id")
+                .toString());
+
+        // check the initial situation has changed accordingly to latest changes:
+        // person #4 has 3 dogs
+        // person #2 has 2 dogs
+        // person #8 has no dogs
+        given()
+                .accept("application/hal+json")
+                .queryParam("sort", "-dogs.size()")
+                .when()
+                .get(PATH)
+                .then()
+                .statusCode(200)
+                .body("_embedded.person.size()", is(3),
+                       "_embedded.person.id", containsInRelativeOrder(4, 2, 8),
+                       "_embedded.person[0].dogs.size()", is(3),
+                       "_embedded.person[1].dogs.size()", is(2),
+                       "_embedded.person[2].dogs.size()", is(0));
+
+        // now delete the 2 dogs just created
+        given()
+                .contentType("application/json")
+                .pathParam("id", foo.id)
+                .when()
+                .delete("/dog/{id}")
+                .then()
+                .statusCode(204);
+
+        given()
+                .contentType("application/json")
+                .pathParam("id", bar.id)
+                .when()
+                .delete("/dog/{id}")
+                .then()
+                .statusCode(204);
+
+        // check the initial situation has been restored:
+        // person #2 has 2 dogs
+        // person #4 has 1 dog
+        // person #8 has no dogs
+        given()
+                .accept("application/hal+json")
+                .queryParam("sort", "-dogs.size()")
+                .when()
+                .get(PATH)
+                .then()
+                .statusCode(200)
+                .body("_embedded.person.size()", is(3),
+                        "_embedded.person.id", containsInRelativeOrder(2, 4, 8),
+                        "_embedded.person[0].dogs.size()", is(2),
+                        "_embedded.person[1].dogs.size()", is(1),
+                        "_embedded.person[2].dogs.size()", is(0));
     }
 }
