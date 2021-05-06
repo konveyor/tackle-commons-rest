@@ -235,8 +235,19 @@ public interface ListFilteredResource<Entity extends PanacheEntity> extends Type
     }
 
     default String getSortValue(String sortQueryParam) {
-        if (sortQueryParam.endsWith(".size()"))  {
-            return String.format("size(%s.%s)", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam.substring(0, sortQueryParam.lastIndexOf('.')));
-        } else return String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam);
+        if (sortQueryParam.endsWith(".size()")) {
+            /**
+             * https://github.com/konveyor/tackle-commons-rest/issues/53
+             * It turned out that 'size()' HQL function doesn't take into account
+             * the {@link org.hibernate.annotations.Where#clause()} and this prevents
+             * it from working properly where there are soft-deleted entities.
+             * At the same time, the deprecated 'size' HQL functions works as expected
+             * so, as a workaround, it can be used as long as 'size()' doesn't work properly.
+             * This is also the reason why the proper 'size()' return string value is kept here commented.
+             */
+//            return String.format("size(%s.%s)", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam.substring(0, sortQueryParam.lastIndexOf('.')));
+            return String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam.substring(0, sortQueryParam.lastIndexOf('(')));
+        }
+        else return String.format("%s.%s", QueryBuilder.DEFAULT_SQL_ROOT_TABLE_ALIAS, sortQueryParam);
     }
 }
