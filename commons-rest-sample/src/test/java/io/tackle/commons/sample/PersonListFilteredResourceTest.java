@@ -141,7 +141,7 @@ import static org.hamcrest.Matchers.iterableWithSize;
         // person #8 has no dogs
         given()
                 .accept("application/hal+json")
-                .queryParam("sort", "-dogs.size")
+                .queryParam("sort", "-dogs.size()")
                 .when()
                 .get(PATH)
                 .then()
@@ -189,7 +189,7 @@ import static org.hamcrest.Matchers.iterableWithSize;
         // person #8 has no dogs
         given()
                 .accept("application/hal+json")
-                .queryParam("sort", "-dogs.size")
+                .queryParam("sort", "-dogs.size()")
                 .when()
                 .get(PATH)
                 .then()
