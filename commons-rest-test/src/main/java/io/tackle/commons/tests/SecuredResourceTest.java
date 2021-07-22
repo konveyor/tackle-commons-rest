@@ -1,6 +1,7 @@
 package io.tackle.commons.tests;
 
 import io.restassured.RestAssured;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -9,12 +10,12 @@ import static io.restassured.RestAssured.oauth2;
 
 public abstract class SecuredResourceTest {
 
-    private static final String KEYCLOAK_SERVER_URL = System.getProperty("quarkus.oidc.auth-server-url", "http://localhost:8180/auth");
     protected static String PATH = "";
     protected static String ACCESS_TOKEN;
 
     @BeforeAll
     public static void setUp() {
+        final String KEYCLOAK_SERVER_URL = ConfigProvider.getConfig().getOptionalValue("quarkus.oidc.auth-server-url", String.class).orElse("http://localhost:8180/auth");
         ACCESS_TOKEN = given()
                     .relaxedHTTPSValidation()
                     .auth().preemptive().basic("backend-service", "secret")
