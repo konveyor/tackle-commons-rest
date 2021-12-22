@@ -2,6 +2,7 @@ package io.tackle.commons.resources.hal;
 
 import io.quarkus.rest.data.panache.runtime.hal.HalLink;
 import io.quarkus.rest.data.panache.runtime.hal.HalLinksProvider;
+import io.quarkus.rest.data.panache.runtime.resource.RESTEasyClassicResourceLinksProvider;
 import io.quarkus.rest.data.panache.runtime.resource.ResourceLinksProvider;
 
 import java.util.HashMap;
@@ -9,7 +10,7 @@ import java.util.Map;
 
 final class RestEasyHalLinksProvider implements HalLinksProvider {
 
-    private final ResourceLinksProvider linksProvider = new ResourceLinksProvider();
+    private final ResourceLinksProvider linksProvider = new RESTEasyClassicResourceLinksProvider();
 
     @Override
     public Map<String, HalLink> getLinks(Class<?> entityClass) {
