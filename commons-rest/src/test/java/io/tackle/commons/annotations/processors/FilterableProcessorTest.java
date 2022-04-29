@@ -37,7 +37,7 @@ public class FilterableProcessorTest {
         assertThat(compilation)
                 .hadErrorContaining("@Filterable must have a 'filterName' value when used with a 'OneToMany' annotated field. The format must follow the 'dot' notation (i.e. 'entities.field')")
                 .inFile(sampleEntity)
-                .onLine(9)
+                .onLine(24)
                 .atColumn(25);
     }
 }
