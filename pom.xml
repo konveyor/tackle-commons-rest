@@ -62,6 +62,10 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>org.jboss.resteasy</groupId>
+        <artifactId>resteasy-links</artifactId>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
